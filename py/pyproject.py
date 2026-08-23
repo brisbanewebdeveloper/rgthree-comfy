@@ -1,11 +1,12 @@
-import os
 import re
 import json
+from pathlib import Path
 
 from .utils import set_dict_value
 
-_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-_FILE_PY_PROJECT = os.path.join(_THIS_DIR, '..', 'pyproject.toml')
+_THIS_DIR = Path(__file__).resolve().parent
+_FILE_PY_PROJECT = _THIS_DIR.parent / 'pyproject.toml'
+_FILE_LOGO = _THIS_DIR.parent / 'web' / 'common' / 'media' / 'rgthree.svg'
 
 
 def read_pyproject():
@@ -15,7 +16,7 @@ def read_pyproject():
   lines = []
   # I'd like to use tomllib/tomli, but I'd much rather not introduce dependencies since I've yet to
   # need to and not everyone may have 3.11. We've got a controlled config file anyway.
-  with open(_FILE_PY_PROJECT, "r", encoding='utf-8') as f:
+  with _FILE_PY_PROJECT.open("r", encoding='utf-8') as f:
     lines = f.readlines()
   for line in lines:
     line = line.strip()
@@ -39,32 +40,12 @@ _DATA = read_pyproject()
 # We would want these to fail if they don't exist, so assume they do.
 VERSION: str = _DATA['project']['version']
 NAME: str = _DATA['project']['name']
-LOGO_URL: str = _DATA['tool']['comfy']['Icon']
-
-if not LOGO_URL.endswith('.svg'):
-  raise ValueError('Bad logo url.')
-
 LOGO_SVG = None
-async def get_logo_svg():
-  import aiohttp
+async def get_logo_svg() -> str:
   global LOGO_SVG
   if LOGO_SVG is not None:
     return LOGO_SVG
-  # Fetch the logo so we have any updated markup.
-  try:
-    async with aiohttp.ClientSession(
-      trust_env=True, connector=aiohttp.TCPConnector(verify_ssl=True)
-    ) as session:
-      headers = {
-        "user-agent": f"rgthree-comfy/{VERSION}",
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      }
-      async with session.get(LOGO_URL, headers=headers) as resp:
-        LOGO_SVG = await resp.text()
-    LOGO_SVG = re.sub(r'(id="bg".*fill=)"[^\"]+"', r'\1"{bg}"', LOGO_SVG)
-    LOGO_SVG = re.sub(r'(id="fg".*fill=)"[^\"]+"', r'\1"{fg}"', LOGO_SVG)
-  except Exception:
-    LOGO_SVG = '<svg></svg>'
+  with _FILE_LOGO.open('r', encoding='utf-8') as f:
+    LOGO_SVG = f.read()
+  LOGO_SVG = LOGO_SVG.replace('fill="currentColor"', 'fill="{fg}"', 1)
   return LOGO_SVG
