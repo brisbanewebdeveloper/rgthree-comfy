@@ -41,6 +41,8 @@ _DATA = read_pyproject()
 VERSION: str = _DATA['project']['version']
 NAME: str = _DATA['project']['name']
 LOGO_SVG = None
+
+
 async def get_logo_svg() -> str:
   global LOGO_SVG
   if LOGO_SVG is not None:
